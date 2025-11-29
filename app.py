@@ -1,3 +1,9 @@
+"""Improved Streamlit app using elbow-method clustering tools with ADK logging.
+
+This version uses clustering_tools_improved_with_logging for better cluster selection.
+To use this version, run: streamlit run app_improved_with_logging.py
+"""
+
 import streamlit as st
 import tempfile
 import os
@@ -6,9 +12,19 @@ import uuid
 import re
 import warnings
 import nest_asyncio
+import logging
+
+# Configure logging according to ADK documentation
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(name)s - %(message)s'
+)
+
+logger = logging.getLogger(__name__)
 
 # Apply nest_asyncio to allow nested event loops
 nest_asyncio.apply()
+logger.info("Applied nest_asyncio for nested event loop support")
 
 # Suppress aiohttp warnings about event loop closure
 warnings.filterwarnings('ignore', category=RuntimeWarning, message='.*Event loop is closed.*')
@@ -26,8 +42,10 @@ from google.genai import Client
 from docx import Document
 from io import BytesIO
 
-# Import agents from my_agent module
-from my_agent.agent import sequential_agent, run_qna_query_simple as run_qna_query
+# Import IMPROVED agents from agent_improved_with_logging module
+from my_agent.agent_improved_with_logging import sequential_agent, run_qna_query_simple as run_qna_query
+
+logger.info("Imported agents and dependencies successfully")
 
 # Helper to run async code
 def run_sync(coro):
@@ -45,21 +63,27 @@ def run_sync(coro):
 @st.cache_resource
 def initialize_runners():
     """Initialize ADK runners and create sessions"""
+    logger.info("Initializing ADK runners and sessions")
+
     pipeline_runner = InMemoryRunner(
         agent=sequential_agent,
-        app_name="segmentation_pipeline"
+        app_name="segmentation_pipeline_improved"
     )
 
     # Create sessions
     user_id = "user1"
     pipeline_session_id = str(uuid.uuid4())
 
+    logger.info(f"Created session ID: {pipeline_session_id}")
+
     # Create sessions using the session service
     run_sync(pipeline_runner.session_service.create_session(
-        app_name="segmentation_pipeline",
+        app_name="segmentation_pipeline_improved",
         user_id=user_id,
         session_id=pipeline_session_id
     ))
+
+    logger.info("ADK runners and sessions initialized successfully")
 
     return {
         "pipeline_runner": pipeline_runner,
@@ -86,19 +110,26 @@ if 'qna_context_initialized' not in st.session_state:
     st.session_state.qna_context_initialized = False
 
 # Streamlit UI
-st.title("Market Segmentation Agent")
+st.title("Market Segmentation Agent 🎯 (Improved with Logging)")
+st.caption("Using elbow-method clustering for accurate cluster detection with ADK logging!")
 
 # Step 1: File upload
 uploaded_file = st.file_uploader("Upload a CSV file to perform market segmentation analysis", type="csv")
 
 # Step 2: Run Analysis button
 if uploaded_file and st.button("Run Analysis", type="primary"):
+    logger.info("User initiated analysis")
+
     with tempfile.NamedTemporaryFile(delete=False, suffix='.csv') as tmp_file:
         tmp_file.write(uploaded_file.getvalue())
         tmp_path = tmp_file.name
 
-    with st.spinner("Running segmentation pipeline..."):
+    logger.info(f"Saved uploaded file to temporary path: {tmp_path}")
+
+    with st.spinner("Running improved segmentation pipeline... 🎯"):
         try:
+            logger.info("Starting segmentation pipeline")
+
             # Create Content object for the message
             content = types.Content(
                 role='user',
@@ -113,12 +144,17 @@ if uploaded_file and st.button("Run Analysis", type="primary"):
                 new_message=content
             )
 
+            logger.debug("Processing pipeline events")
+
             # Process events
             clustering_text = []
             marketing_text = []
             current_agent = None
+            event_count = 0
 
             for event in events:
+                event_count += 1
+
                 # Track which agent is responding
                 if hasattr(event, 'agent_name') and event.agent_name:
                     current_agent = event.agent_name
@@ -152,16 +188,16 @@ if uploaded_file and st.button("Run Analysis", type="primary"):
                         if 'marketing_strategies' in event.state:
                             st.session_state.marketing_strategies = event.state['marketing_strategies']
 
+            logger.info(f"Processed {event_count} events from pipeline")
+
             result = '\n'.join(result_text)
 
-            # Debug: show what was captured
-            st.write(f"DEBUG: Captured {len(clustering_text)} clustering text parts")
-            st.write(f"DEBUG: Captured {len(marketing_text)} marketing text parts")
-            st.write(f"DEBUG: clustering_results in session: {bool(st.session_state.clustering_results)}")
-            st.write(f"DEBUG: marketing_strategies in session: {bool(st.session_state.marketing_strategies)}")
+            logger.info(f"Captured {len(clustering_text)} clustering text parts, {len(marketing_text)} marketing text parts")
 
             # Fallback: use text result if state not captured
             if not st.session_state.clustering_results:
+                logger.warning("Clustering results not found in state, using fallback extraction")
+
                 if clustering_text:
                     st.session_state.clustering_results = '\n'.join(clustering_text)
                 elif result:
@@ -172,6 +208,7 @@ if uploaded_file and st.button("Run Analysis", type="primary"):
                         if len(parts) == 2:
                             st.session_state.clustering_results = parts[0]
                             st.session_state.marketing_strategies = marker + parts[1]
+                            logger.info(f"Split results using marker: {marker}")
                             break
                     else:
                         st.session_state.clustering_results = result
@@ -210,6 +247,7 @@ if uploaded_file and st.button("Run Analysis", type="primary"):
                             csv_path = path_match.group(1).strip().strip('"').strip("'")
                             if os.path.exists(csv_path):
                                 st.session_state.clustered_csv_path = csv_path
+                                logger.info(f"Found clustered CSV at: {csv_path}")
                                 break
 
                     # If still not found, try to find any CSV file path mentioned
@@ -218,20 +256,26 @@ if uploaded_file and st.button("Run Analysis", type="primary"):
                         for path in csv_paths:
                             if os.path.exists(path):
                                 st.session_state.clustered_csv_path = path
+                                logger.info(f"Found clustered CSV (fallback): {path}")
                                 break
             except Exception as e:
+                logger.error(f"Could not extract clustered CSV path: {e}")
                 st.warning(f"Could not extract clustered CSV path: {e}")
 
             st.session_state.analysis_complete = True
             # Reset QnA context flag when new analysis is run
             st.session_state.qna_context_initialized = False
             st.session_state.chat_history = []  # Clear chat history for new analysis
+
+            logger.info("Analysis completed successfully")
             st.success("✓ Analysis complete! Download your results below.")
 
         except Exception as e:
+            logger.error(f"Error during analysis: {str(e)}", exc_info=True)
             st.error(f"Error: {e}")
         finally:
             os.remove(tmp_path)
+            logger.info("Cleaned up temporary file")
 
 # Step 3: Downloadable results
 if st.session_state.clustering_results:
@@ -303,6 +347,8 @@ if st.session_state.analysis_complete:
             st.write(message["content"])
 
     if prompt := st.chat_input("Ask a question about the segmentation results..."):
+        logger.info(f"User asked question: {prompt[:50]}...")
+
         # Add user message to chat history
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -313,6 +359,8 @@ if st.session_state.analysis_complete:
                 try:
                     # Initialize context on first question only
                     if not st.session_state.qna_context_initialized:
+                        logger.info("Initializing QnA context for first question")
+
                         # Build comprehensive context with the analysis results
                         context_parts = []
 
@@ -329,6 +377,7 @@ if st.session_state.analysis_complete:
                             )
 
                         if not context_parts:
+                            logger.error("No analysis context available for QnA")
                             st.error("No analysis context available. Please run the analysis first.")
                         else:
                             context = "\n\n".join(context_parts)
@@ -337,6 +386,7 @@ if st.session_state.analysis_complete:
                             st.session_state.qna_context_initialized = True
                             st.write(response)
                             st.session_state.chat_history.append({"role": "assistant", "content": response})
+                            logger.info("QnA context initialized and first response generated")
                     else:
                         # Context already initialized, just send the question
                         response = run_qna_query(prompt, context=None)
@@ -344,4 +394,5 @@ if st.session_state.analysis_complete:
                         st.session_state.chat_history.append({"role": "assistant", "content": response})
 
                 except Exception as e:
+                    logger.error(f"Error in QnA: {str(e)}", exc_info=True)
                     st.error(f"Error: {str(e)}")

@@ -1,6 +1,9 @@
+"""Improved agent configuration using elbow-method clustering tools with ADK logging."""
+
+import logging
 from google.adk.agents import Agent, SequentialAgent
 from google.adk.models.google_llm import Gemini
-from my_agent.tools.clustering_tools import (
+from my_agent.tools.clustering_tools_improved_with_logging import (
     preprocess_csv_for_clustering,
     perform_cluster_analysis,
     save_clustered_data
@@ -9,38 +12,62 @@ from google.genai import types, Client
 from typing import List, Dict, Any
 import streamlit as st
 
+# Configure logging according to ADK documentation
+logger = logging.getLogger(__name__)
+
 
 retry_config = types.HttpRetryOptions(
-    attempts=5,
-    exp_base=7,
-    initial_delay=1,
-    http_status_codes=[429, 500, 503, 504],
+    attempts=10,  # Increased from 5
+    exp_base=2,   # Reduced from 7 for faster retries
+    initial_delay=0.5,  # Reduced from 1
+    max_delay=30,  # Add max delay
+    http_status_codes=[429, 500, 503, 504, 408],  # Added 408 (timeout)
 )
 
-# Clustering agent for Streamlit app
+logger.info("Initialized retry configuration for agents")
+
+# Clustering agent with IMPROVED clustering tools using elbow method
 streamlit_clustering_agent = Agent(
-    model=Gemini(model="gemini-2.5-flash", retry_options=retry_config),
-    name="clustering_agent",
-    description="Performs clustering analysis on CSV data",
+    model=Gemini(
+        model="gemini-2.5-flash",
+        retry_options=retry_config,
+        generation_config=types.GenerateContentConfig(
+            response_modalities=["TEXT"],
+        )
+    ),
+    name="clustering_agent_improved",
+    description="Performs clustering analysis using ELBOW METHOD for optimal cluster selection",
     instruction=(
-        "You are an expert data scientist performing clustering analysis on csv data. "
-        "The user will provide a CSV file path. "
-        "STEP 1: Use the preprocess_csv_for_clustering tool to preprocess the data. "
-        "STEP 2: Run perform_cluster_analysis on the preprocessed data to get cluster labels. "
-        "STEP 3: Use save_clustered_data to merge the cluster labels with the original CSV file. "
-        "Pass the original CSV file path and the cluster labels from step 2. "
-        "STEP 4: Provide a comprehensive summary of the clustering results including: "
-        "- Number of clusters found "
-        "- Silhouette score and Davies-Bouldin score "
-        "- Size of each cluster "
-        "- Key characteristics of each segment "
-        "- Path to the saved clustered data file"
+        "You perform clustering analysis using ONLY the provided tools. "
+        "NEVER write code, NEVER explain methodology, NEVER describe theoretical approaches. "
+        "\n\n"
+        "MANDATORY STEPS - NO EXCEPTIONS:\n"
+        "1. IMMEDIATELY call preprocess_csv_for_clustering(csv_file=<path>)\n"
+        "2. IMMEDIATELY call perform_cluster_analysis(preprocessed_data=<result from step 1>)\n"
+        "   - The tool uses the ELBOW METHOD to automatically find optimal clusters (2-8)\n"
+        "   - It calculates inertia, silhouette, Davies-Bouldin, and Calinski-Harabasz scores\n"
+        "   - The elbow point in the inertia curve determines the optimal k\n"
+        "3. IMMEDIATELY call save_clustered_data(csv_file=<original path>, cluster_labels=<labels from step 2>)\n"
+        "\n"
+        "After tool execution completes, provide a brief summary:\n"
+        "- Optimal clusters found (by elbow method): <n_clusters from step 2>\n"
+        "- Silhouette score: <silhouette_score from step 2>\n"
+        "- Davies-Bouldin score: <davies_bouldin_score from step 2>\n"
+        "- Calinski-Harabasz score: <calinski_harabasz_score from step 2>\n"
+        "- Cluster sizes: <cluster_sizes from step 2>\n"
+        "- Selection method: <selection_method from optimization_scores>\n"
+        "- Saved to: <output_path from step 3>\n"
+        "\n"
+        "FORBIDDEN: Generating Python code, explaining algorithms, describing methodology, writing 'I will', 'I would', or 'First, let me'.\n"
+        "REQUIRED: Execute tools immediately and report results."
     ),
     tools=[preprocess_csv_for_clustering, perform_cluster_analysis, save_clustered_data],
     output_key="clustering_results"
 )
 
-# Marketing strategy agent
+logger.info("Initialized clustering agent with elbow-method tools")
+
+# Marketing strategy agent (unchanged)
 marketing_strategy_agent = Agent(
     model=Gemini(model="gemini-2.5-flash", retry_options=retry_config),
     name="marketing_strategy_agent",
@@ -59,14 +86,17 @@ marketing_strategy_agent = Agent(
     output_key="marketing_strategies"
 )
 
-# Streamlit app sequential pipeline
+logger.info("Initialized marketing strategy agent")
+
+# Streamlit app sequential pipeline with improved clustering
 sequential_agent = SequentialAgent(
-    name="SegmentationPipeline",
+    name="SegmentationPipelineImproved",
     sub_agents=[streamlit_clustering_agent, marketing_strategy_agent]
 )
 
-# Define the agent (for demonstration purposes - shows ADK architecture)
-# Even though we use direct API, this shows proper agent design
+logger.info("Initialized sequential agent pipeline: SegmentationPipelineImproved")
+
+# QnA agent (unchanged)
 qna_agent = Agent(
     model=Gemini(
         model="gemini-2.5-flash",
@@ -91,6 +121,8 @@ qna_agent = Agent(
     tools=[]
 )
 
+logger.info("Initialized QnA agent")
+
 # Cache conversation history
 @st.cache_resource
 def get_conversation_history():
@@ -98,6 +130,7 @@ def get_conversation_history():
     Get persistent conversation history.
     This simulates what ADK's InMemoryRunner does with sessions.
     """
+    logger.debug("Retrieving conversation history from cache")
     return {
         "messages": [],
         "context_initialized": False,
@@ -108,32 +141,34 @@ def get_conversation_history():
 def run_qna_hybrid(question: str, context: str = None) -> str:
     """
     Run QnA using direct API with ADK-inspired architecture.
-    
+
     This approach:
     - Uses Gemini API directly (avoids event loop issues)
     - Maintains conversation history (like ADK sessions)
     - Uses agent instruction (from ADK agent definition)
     - Structured to demonstrate agent concepts for capstone
-    
+
     Args:
         question: The user's question
         context: Combined context (clustering results + marketing strategies).
                  Only needs to be provided on first call.
-    
+
     Returns:
         Agent's response as a string
     """
+    logger.info("Processing QnA query")
+    logger.debug(f"Question length: {len(question)} chars, Context provided: {context is not None}")
+
     try:
         # Get conversation history (simulates ADK session)
         conv_history = get_conversation_history()
-        
-        print(f"\nDEBUG: Processing question")
-        print(f"DEBUG: Context initialized: {conv_history['context_initialized']}")
-        print(f"DEBUG: Conversation history length: {len(conv_history['messages'])}")
-        
+
+        logger.debug(f"Context initialized: {conv_history['context_initialized']}")
+        logger.debug(f"Conversation history length: {len(conv_history['messages'])}")
+
         # Initialize Gemini client
         client = Client()
-        
+
         # Build the user message
         if context and not conv_history["context_initialized"]:
             # First message: include context
@@ -145,22 +180,23 @@ def run_qna_hybrid(question: str, context: str = None) -> str:
                 f"Please answer the question above based on the context provided."
             )
             conv_history["context_initialized"] = True
-            print("DEBUG: Sending first message WITH context")
+            logger.info("Sending first message with context")
         else:
             # Subsequent messages: just the question
             user_message = question
-            print("DEBUG: Sending follow-up question WITHOUT context")
-        
-        print(f"DEBUG: Message length: {len(user_message)} chars")
-        
+            logger.info("Sending follow-up question without context")
+
+        logger.debug(f"Message length: {len(user_message)} chars")
+
         # Add user message to history
         conv_history["messages"].append({
             "role": "user",
             "parts": [{"text": user_message}]
         })
-        
+
         # Make API call with full conversation history
         # This is equivalent to what ADK's InMemoryRunner does
+        logger.debug("Making API call to Gemini")
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=conv_history["messages"],  # Full conversation history
@@ -169,49 +205,50 @@ def run_qna_hybrid(question: str, context: str = None) -> str:
                 temperature=0.7,
             )
         )
-        
+
         # Extract response
         if response and response.text:
             assistant_response = response.text
-            
+
             # Add assistant response to history
             conv_history["messages"].append({
                 "role": "model",
                 "parts": [{"text": assistant_response}]
             })
-            
-            print(f"DEBUG: Response received, length: {len(assistant_response)} chars")
-            print(f"DEBUG: Total messages in history: {len(conv_history['messages'])}")
-            
+
+            logger.info(f"Response received, length: {len(assistant_response)} chars")
+            logger.debug(f"Total messages in history: {len(conv_history['messages'])}")
+
             return assistant_response
         else:
-            print("DEBUG: No response text received")
+            logger.warning("No response text received from API")
             return "I couldn't generate a response. Please try rephrasing your question."
-    
+
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
-        print(f"ERROR: Full traceback:\n{error_details}")
+        logger.error(f"Error processing QnA query: {str(e)}")
+        logger.debug(f"Full traceback:\n{error_details}")
         return f"Error processing question: {str(e)}"
 
 
 def run_qna_query_simple(question: str, context: str = None) -> str:
     """
     Drop-in replacement that works reliably while maintaining agent concepts.
-    
+
     For your capstone demo, you can explain:
     - Agent definition (shows ADK Agent class with Gemini model)
     - Conversation history management (simulates ADK session service)
     - System instruction (from agent definition)
     - Stateful conversations (history maintained across calls)
-    
+
     The implementation is reliable but still demonstrates key ADK concepts.
-    
+
     Args:
         question: User's question about the segmentation analysis
         context: Combined context containing clustering results and marketing strategies.
                  Should be provided on the first call, then can be None for follow-ups.
-    
+
     Returns:
         Agent's response to the question
     """
