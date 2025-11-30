@@ -29,6 +29,7 @@ venv/
 ENV/
 env/
 .virtualenv
+.venv_adk/
 
 # IDE
 .vscode/
