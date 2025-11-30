@@ -3,9 +3,10 @@
 import logging
 from google.adk.agents import Agent, SequentialAgent
 from google.adk.models.google_llm import Gemini
-from my_agent.tools.clustering_tools_improved_with_logging import (
+from my_agent.tools.clustering_tools import (
     preprocess_csv_for_clustering,
     perform_cluster_analysis,
+    generate_cluster_profiles,
     save_clustered_data
 )
 from google.genai import types, Client
@@ -47,21 +48,28 @@ streamlit_clustering_agent = Agent(
         "   - The tool uses the ELBOW METHOD to automatically find optimal clusters (2-8)\n"
         "   - It calculates inertia, silhouette, Davies-Bouldin, and Calinski-Harabasz scores\n"
         "   - The elbow point in the inertia curve determines the optimal k\n"
-        "3. IMMEDIATELY call save_clustered_data(csv_file=<original path>, cluster_labels=<labels from step 2>)\n"
+        "3. IMMEDIATELY call generate_cluster_profiles(csv_file=<original path>, cluster_labels=<labels from step 2>, preprocessed_data=<result from step 1>)\n"
+        "   - This generates descriptive profiles and statistics for each cluster\n"
+        "4. IMMEDIATELY call save_clustered_data(csv_file=<original path>, cluster_labels=<labels from step 2>)\n"
         "\n"
-        "After tool execution completes, provide a brief summary:\n"
+        "After tool execution completes, provide a comprehensive summary:\n"
         "- Optimal clusters found (by elbow method): <n_clusters from step 2>\n"
         "- Silhouette score: <silhouette_score from step 2>\n"
         "- Davies-Bouldin score: <davies_bouldin_score from step 2>\n"
         "- Calinski-Harabasz score: <calinski_harabasz_score from step 2>\n"
         "- Cluster sizes: <cluster_sizes from step 2>\n"
         "- Selection method: <selection_method from optimization_scores>\n"
-        "- Saved to: <output_path from step 3>\n"
+        "- Saved to: <output_path from step 4>\n"
+        "\n"
+        "CLUSTER PROFILES:\n"
+        "For each cluster from step 3, include:\n"
+        "- The complete description from cluster_profiles\n"
+        "- Key feature statistics to help understand each segment\n"
         "\n"
         "FORBIDDEN: Generating Python code, explaining algorithms, describing methodology, writing 'I will', 'I would', or 'First, let me'.\n"
         "REQUIRED: Execute tools immediately and report results."
     ),
-    tools=[preprocess_csv_for_clustering, perform_cluster_analysis, save_clustered_data],
+    tools=[preprocess_csv_for_clustering, perform_cluster_analysis, generate_cluster_profiles, save_clustered_data],
     output_key="clustering_results"
 )
 
@@ -96,7 +104,7 @@ sequential_agent = SequentialAgent(
 
 logger.info("Initialized sequential agent pipeline: SegmentationPipelineImproved")
 
-# QnA agent (unchanged)
+# QnA agent
 qna_agent = Agent(
     model=Gemini(
         model="gemini-2.5-flash",
@@ -235,14 +243,6 @@ def run_qna_hybrid(question: str, context: str = None) -> str:
 def run_qna_query_simple(question: str, context: str = None) -> str:
     """
     Drop-in replacement that works reliably while maintaining agent concepts.
-
-    For your capstone demo, you can explain:
-    - Agent definition (shows ADK Agent class with Gemini model)
-    - Conversation history management (simulates ADK session service)
-    - System instruction (from agent definition)
-    - Stateful conversations (history maintained across calls)
-
-    The implementation is reliable but still demonstrates key ADK concepts.
 
     Args:
         question: User's question about the segmentation analysis

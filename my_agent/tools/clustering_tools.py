@@ -293,6 +293,114 @@ def perform_cluster_analysis(preprocessed_data: dict, max_clusters: int = 8, n_c
 
 
 @tool
+def generate_cluster_profiles(csv_file: str, cluster_labels: List[int], preprocessed_data: dict) -> dict:
+    """Generate descriptive profiles for each cluster based on feature statistics.
+
+    Args:
+        csv_file: Path to the original CSV file
+        cluster_labels: List of cluster labels for each row
+        preprocessed_data: Dictionary from preprocess_csv_for_clustering (contains feature_names)
+
+    Returns:
+        Dictionary with cluster profiles including statistics and descriptions
+    """
+    logger.info(f"Generating cluster profiles for {csv_file}")
+    logger.debug(f"Processing {len(cluster_labels)} data points")
+
+    try:
+        # Read original CSV
+        df = pd.read_csv(csv_file)
+        df['Cluster'] = cluster_labels
+
+        feature_names = preprocessed_data['feature_names']
+        n_clusters = len(set(cluster_labels))
+
+        logger.debug(f"Analyzing {n_clusters} clusters across {len(feature_names)} features")
+
+        profiles = {}
+
+        for cluster_id in range(n_clusters):
+            cluster_data = df[df['Cluster'] == cluster_id]
+            cluster_size = len(cluster_data)
+
+            logger.debug(f"Processing cluster {cluster_id}: {cluster_size} samples")
+
+            # Calculate statistics for each feature
+            feature_stats = {}
+            for feature in feature_names:
+                if feature in df.columns:
+                    col_data = cluster_data[feature]
+
+                    # Check if numeric or categorical
+                    if pd.api.types.is_numeric_dtype(col_data):
+                        feature_stats[feature] = {
+                            'mean': float(col_data.mean()),
+                            'median': float(col_data.median()),
+                            'std': float(col_data.std()),
+                            'min': float(col_data.min()),
+                            'max': float(col_data.max()),
+                            'type': 'numeric'
+                        }
+                    else:
+                        # For categorical, get mode and value counts
+                        value_counts = col_data.value_counts()
+                        feature_stats[feature] = {
+                            'mode': str(value_counts.index[0]) if len(value_counts) > 0 else 'N/A',
+                            'mode_count': int(value_counts.iloc[0]) if len(value_counts) > 0 else 0,
+                            'unique_values': int(col_data.nunique()),
+                            'type': 'categorical'
+                        }
+
+            # Generate human-readable description
+            description_parts = []
+            description_parts.append(f"Cluster {cluster_id} contains {cluster_size} customers ({(cluster_size/len(df)*100):.1f}% of total).")
+
+            # Highlight key numeric features
+            numeric_features = {k: v for k, v in feature_stats.items() if v.get('type') == 'numeric'}
+            if numeric_features:
+                description_parts.append("\nKey characteristics:")
+                for i, (feat, stats) in enumerate(list(numeric_features.items())[:5]):
+                    description_parts.append(
+                        f"  - {feat}: avg={stats['mean']:.2f}, range=[{stats['min']:.2f}, {stats['max']:.2f}]"
+                    )
+
+            # Add categorical features
+            categorical_features = {k: v for k, v in feature_stats.items() if v.get('type') == 'categorical'}
+            if categorical_features:
+                description_parts.append("\nCategorical patterns:")
+                for feat, stats in list(categorical_features.items())[:3]:
+                    description_parts.append(
+                        f"  - {feat}: most common is '{stats['mode']}' ({stats['mode_count']} occurrences)"
+                    )
+
+            profiles[f"cluster_{cluster_id}"] = {
+                'cluster_id': cluster_id,
+                'size': cluster_size,
+                'percentage': float((cluster_size/len(df)*100)),
+                'feature_statistics': feature_stats,
+                'description': '\n'.join(description_parts)
+            }
+
+            logger.debug(f"Generated profile for cluster {cluster_id}")
+
+        logger.info(f"Successfully generated profiles for {n_clusters} clusters")
+
+        return {
+            'success': True,
+            'n_clusters': n_clusters,
+            'total_samples': len(df),
+            'cluster_profiles': profiles
+        }
+
+    except Exception as e:
+        logger.error(f"Error generating cluster profiles: {str(e)}", exc_info=True)
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+@tool
 def save_clustered_data(csv_file: str, cluster_labels: List[int], output_file: Optional[str] = None) -> dict:
     """Merge cluster labels with original CSV data and save to file.
 

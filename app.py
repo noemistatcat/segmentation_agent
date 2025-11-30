@@ -43,7 +43,7 @@ from docx import Document
 from io import BytesIO
 
 # Import IMPROVED agents from agent_improved_with_logging module
-from my_agent.agent_improved_with_logging import sequential_agent, run_qna_query_simple as run_qna_query
+from my_agent.agent import sequential_agent, run_qna_query_simple as run_qna_query
 
 logger.info("Imported agents and dependencies successfully")
 
@@ -110,8 +110,7 @@ if 'qna_context_initialized' not in st.session_state:
     st.session_state.qna_context_initialized = False
 
 # Streamlit UI
-st.title("Market Segmentation Agent 🎯 (Improved with Logging)")
-st.caption("Using elbow-method clustering for accurate cluster detection with ADK logging!")
+st.title("Market Segmentation Agent")
 
 # Step 1: File upload
 uploaded_file = st.file_uploader("Upload a CSV file to perform market segmentation analysis", type="csv")
@@ -126,7 +125,7 @@ if uploaded_file and st.button("Run Analysis", type="primary"):
 
     logger.info(f"Saved uploaded file to temporary path: {tmp_path}")
 
-    with st.spinner("Running improved segmentation pipeline... 🎯"):
+    with st.spinner("Running segmentation pipeline... This may take a few minutes."):
         try:
             logger.info("Starting segmentation pipeline")
 
