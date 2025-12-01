@@ -13,23 +13,12 @@ import pickle
 import os
 
 # Configure logging according to ADK documentation
-logger = logging.getLogger(__name__)
-
-try:
-    from adk import tool
-except Exception:
-    def tool(fn=None, *args, **kwargs):
-        if fn is None:
-            def decorator(f):
-                return f
-            return decorator
-        return fn
+logger = logging.getLogger(__name__ + "_v2")
 
 # Cache for preprocessed features to avoid passing large arrays through LLM context
-_FEATURE_CACHE = {}
+_FEATURE_CACHE_V2 = {}
 
 
-@tool
 def preprocess_csv_for_clustering(csv_file: str) -> dict:
     """Preprocess CSV data for clustering analysis.
 
@@ -75,7 +64,7 @@ def preprocess_csv_for_clustering(csv_file: str) -> dict:
 
         # Cache features instead of returning them (avoids bloating LLM context)
         cache_key = f"features_{csv_file}_{len(df)}"
-        _FEATURE_CACHE[cache_key] = scaled_features
+        _FEATURE_CACHE_V2[cache_key] = scaled_features
 
         logger.info(f"Cached features with key: {cache_key}")
 
@@ -136,7 +125,6 @@ def find_elbow_point(inertias: dict) -> int:
     return elbow_k
 
 
-@tool
 def perform_cluster_analysis(preprocessed_data: dict, max_clusters: int = 8, n_clusters: Optional[int] = None) -> dict:
     """Optimized clustering with IMPROVED cluster count selection.
 
@@ -159,12 +147,12 @@ def perform_cluster_analysis(preprocessed_data: dict, max_clusters: int = 8, n_c
 
     # Retrieve features from cache
     cache_key = preprocessed_data['cache_key']
-    if cache_key not in _FEATURE_CACHE:
+    if cache_key not in _FEATURE_CACHE_V2:
         error_msg = f'Features not found in cache for key: {cache_key}'
         logger.error(error_msg)
         return {'error': error_msg}
 
-    features = _FEATURE_CACHE[cache_key]
+    features = _FEATURE_CACHE_V2[cache_key]
     n_samples = features.shape[0]
 
     logger.debug(f"Retrieved features from cache: {n_samples} samples, {features.shape[1]} features")
@@ -292,7 +280,6 @@ def perform_cluster_analysis(preprocessed_data: dict, max_clusters: int = 8, n_c
     return result
 
 
-@tool
 def generate_cluster_profiles(csv_file: str, cluster_labels: List[int], preprocessed_data: dict) -> dict:
     """Generate descriptive profiles for each cluster based on feature statistics.
 
@@ -400,7 +387,6 @@ def generate_cluster_profiles(csv_file: str, cluster_labels: List[int], preproce
         }
 
 
-@tool
 def save_clustered_data(csv_file: str, cluster_labels: List[int], output_file: Optional[str] = None) -> dict:
     """Merge cluster labels with original CSV data and save to file.
 

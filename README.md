@@ -42,6 +42,7 @@ This application implements an **agentic AI pipeline** that orchestrates special
 - Uses the **elbow method** to determine optimal cluster count 
 - Calculates multiple validation metrics (Silhouette, Davies-Bouldin, Calinski-Harabasz)
 - Generates cluster labels and saves enriched data
+- Summarizes the profile and characteristics of each segment
 
 ### 2. Marketing Strategy Agent
 - Receives clustering results from the previous agent
@@ -65,39 +66,40 @@ This application implements an **agentic AI pipeline** that orchestrates special
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Streamlit UI Layer                       │
+│                     Streamlit UI Layer                      │
 │  (File Upload → Run Analysis → Download Reports → Chat)     │
 └──────────────────────┬──────────────────────────────────────┘
                        │
                        ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                  Google ADK Layer                            │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │         Sequential Agent Pipeline                     │  │
-│  │                                                        │  │
-│  │  ┌─────────────────┐    ┌──────────────────────┐    │  │
-│  │  │ Clustering Agent│ →  │Marketing Strategy    │    │  │
-│  │  │                 │    │Agent                 │    │  │
-│  │  │ • Preprocesses  │    │ • Receives context   │    │  │
-│  │  │ • Clusters data │    │ • Generates          │    │  │
-│  │  │ • Selects k     │    │   strategies         │    │  │
-│  │  └─────────────────┘    └──────────────────────┘    │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │              Q&A Agent (Standalone)                   │  │
-│  │  • Maintains conversation history                     │  │
-│  │  • Answers follow-up questions                        │  │
-│  └──────────────────────────────────────────────────────┘  │
+│                  Google ADK Layer                           │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │         Sequential Agent Pipeline                    │   │
+│  │                                                      │   │
+│  │  ┌─────────────────┐    ┌──────────────────────┐     │   │
+│  │  │ Clustering Agent│ →  │Marketing Strategy    │     │   │
+│  │  │                 │    │Agent                 │     │   │
+│  │  │ • Preprocesses  │    │ • Receives context   │     │   │
+│  │  │ • Clusters data │    │ • Generates          │     │   │
+│  │  │ • Selects k     │    │   strategies         │     │   │
+│  │  └─────────────────┘    └──────────────────────┘     │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              Q&A Agent (Standalone)                  │   │
+│  │  • Maintains conversation history                    │   │
+│  │  • Answers follow-up questions                       │   │
+│  └──────────────────────────────────────────────────────┘   │
 └──────────────────────┬──────────────────────────────────────┘
                        │
                        ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   Tool Layer                                 │
-│                                                              │
+│                   Tool Layer                                │
+│                                                             │
 │  • preprocess_csv_for_clustering()                          │
 │  • perform_cluster_analysis()  ← Elbow method               │
+│  • generate_cluster_profiles()                              │
 │  • save_clustered_data()                                    │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -117,25 +119,28 @@ User uploads CSV
     ▼
 ┌───────────────────────────────────────────────────┐
 │ Clustering Agent                                  │
-│ 1. Calls: preprocess_csv_for_clustering()        │
+│ 1. Calls: preprocess_csv_for_clustering()         │
 │    → Returns: cache_key, features metadata        │
 │                                                   │
-│ 2. Calls: perform_cluster_analysis()             │
-│    → Elbow method finds optimal k                │
+│ 2. Calls: perform_cluster_analysis()              │
+│    → Elbow method finds optimal k                 │
 │    → Returns: labels, metrics, scores             │
 │                                                   │
-│ 3. Calls: save_clustered_data()                  │
-│    → Returns: output_path to CSV                 │
+│ 3. Calls: generate_cluster_profiles()             │
+│    → Returns: cluster descriptions                │
+|                                                   │
+│ 3. Calls: save_clustered_data()                   │
+│    → Returns: output_path to CSV                  │
 │                                                   │
-│ Output Key: "clustering_results"                 │
+│ Output Key: "clustering_results"                  │
 └───────────────────────────────────────────────────┘
     │
     ▼ (Sequential handoff)
 ┌───────────────────────────────────────────────────┐
 │ Marketing Strategy Agent                          │
 │ • Receives context: clustering_results            │
-│ • Gemini 2.5 Flash generates strategies          │
-│ • Output Key: "marketing_strategies"             │
+│ • Gemini 2.5 Flash generates strategies           │
+│ • Output Key: "marketing_strategies"              │
 └───────────────────────────────────────────────────┘
     │
     ▼
@@ -151,10 +156,11 @@ Results returned to Streamlit UI
 - **Gemini 2.5 Flash**: Underlying LLM with retry configuration
 
 #### 2. Tool System
-Tools are Python functions decorated with `@tool` that agents can call:
-- Feature caching to avoid passing large arrays through LLM context
-- Comprehensive logging for debugging and monitoring
-- Type-safe interfaces with validation
+Tools are custom Python functions that agents can call:
+- Preprocess the data
+- Perform cluster analysis
+- Generate segment profiles and descriptions
+- Save data
 
 #### 3. Elbow Method Implementation
 The clustering optimization uses a mathematical approach to find the elbow point:
@@ -168,6 +174,10 @@ The clustering optimization uses a mathematical approach to find the elbow point
 - Streamlit's `st.cache_resource` for persistent runners
 - ADK's session service for conversation history
 - Separate sessions for pipeline and Q&A
+
+#### 5. Logging
+- Diagnostic logs about events, data processing, results and outputs, and performance
+
 
 ## Setup Instructions
 
@@ -259,7 +269,6 @@ Columns to avoid using as features:
 
 - "How many clusters were there?"
 - "How did you determine the number of clusters?"
-- "What algorithm did you use?"
 - "Is this a good solution?"
 - "I work in product development - what are products that you can make for this segment?"
 - "I work as an advertising manager - How would you advertise that product?"

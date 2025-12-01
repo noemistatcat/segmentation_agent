@@ -1,0 +1,11 @@
+google-adk==1.19.0
+google-genai==1.52.0
+google-cloud-aiplatform==1.128.0
+pandas==2.3.3
+numpy==2.3.5
+scikit-learn==1.7.2
+matplotlib==3.10.7
+seaborn==0.13.2
+streamlit
+python-dotenv==1.2.1
+aiohttp==3.8.5
