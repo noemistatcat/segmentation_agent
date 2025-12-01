@@ -69,3 +69,9 @@ dmypy.json
 
 questions.txt
 
+# Docker
+.dockerignore
+
+# Deployment
+deploy.sh.log
+
