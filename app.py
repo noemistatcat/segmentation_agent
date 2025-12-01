@@ -1,9 +1,3 @@
-"""Improved Streamlit app using elbow-method clustering tools with ADK logging.
-
-This version uses clustering_tools_improved_with_logging for better cluster selection.
-To use this version, run: streamlit run app_improved_with_logging.py
-"""
-
 import streamlit as st
 import tempfile
 import os
@@ -41,8 +35,6 @@ from google.genai import types
 from google.genai import Client
 from docx import Document
 from io import BytesIO
-
-# Import IMPROVED agents from agent_improved_with_logging module
 from my_agent.agent import sequential_agent, run_qna_query_simple as run_qna_query
 
 logger.info("Imported agents and dependencies successfully")

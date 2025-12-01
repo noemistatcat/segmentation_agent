@@ -75,3 +75,5 @@ questions.txt
 # Deployment
 deploy.sh.log
 
+*.png
+

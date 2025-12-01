@@ -1,5 +1,3 @@
-"""IMPROVED clustering tools with better cluster count selection and ADK logging."""
-
 import logging
 import pandas as pd
 import numpy as np
@@ -8,9 +6,6 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 from collections import Counter
-import tempfile
-import pickle
-import os
 
 # Configure logging according to ADK documentation
 logger = logging.getLogger(__name__ + "_v2")
@@ -126,14 +121,12 @@ def find_elbow_point(inertias: dict) -> int:
 
 
 def perform_cluster_analysis(preprocessed_data: dict, max_clusters: int = 8, n_clusters: Optional[int] = None) -> dict:
-    """Optimized clustering with IMPROVED cluster count selection.
+    """Optimized clustering with cluster count selection.
 
     Uses a composite scoring method that combines:
     - Silhouette score
     - Davies-Bouldin score
     - Penalty for overly simple (k=2) or complex (k>6) solutions
-
-    This approach better identifies the true number of clusters compared to silhouette alone.
 
     Args:
         preprocessed_data: Dictionary from preprocess_csv_for_clustering (contains cache_key)

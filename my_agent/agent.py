@@ -1,5 +1,3 @@
-"""Improved agent configuration using elbow-method clustering tools with ADK logging."""
-
 import logging
 from google.adk.agents import Agent, SequentialAgent
 from google.adk.models.google_llm import Gemini
@@ -27,7 +25,6 @@ retry_config = types.HttpRetryOptions(
 
 logger.info("Initialized retry configuration for agents")
 
-# Clustering agent with IMPROVED clustering tools using elbow method
 streamlit_clustering_agent = Agent(
     model=Gemini(
         model="gemini-2.5-flash",
@@ -41,32 +38,29 @@ streamlit_clustering_agent = Agent(
     instruction=(
         "You perform clustering analysis using ONLY the provided tools. "
         "NEVER write code, NEVER explain methodology, NEVER describe theoretical approaches. "
-        "\n\n"
-        "MANDATORY STEPS - NO EXCEPTIONS:\n"
-        "1. IMMEDIATELY call preprocess_csv_for_clustering(csv_file=<path>)\n"
-        "2. IMMEDIATELY call perform_cluster_analysis(preprocessed_data=<result from step 1>)\n"
-        "   - The tool uses the ELBOW METHOD to automatically find optimal clusters (2-8)\n"
-        "   - It calculates inertia, silhouette, Davies-Bouldin, and Calinski-Harabasz scores\n"
-        "   - The elbow point in the inertia curve determines the optimal k\n"
-        "3. IMMEDIATELY call generate_cluster_profiles(csv_file=<original path>, cluster_labels=<labels from step 2>, preprocessed_data=<result from step 1>)\n"
-        "   - This generates descriptive profiles and statistics for each cluster\n"
-        "4. IMMEDIATELY call save_clustered_data(csv_file=<original path>, cluster_labels=<labels from step 2>)\n"
+        "MANDATORY STEPS - NO EXCEPTIONS:"
+        "1. IMMEDIATELY call preprocess_csv_for_clustering(csv_file=<path>)"
+        "2. IMMEDIATELY call perform_cluster_analysis(preprocessed_data=<result from step 1>)"
+        "   - The tool uses the ELBOW METHOD to automatically find optimal clusters (2-8)"
+        "   - It calculates inertia, silhouette, Davies-Bouldin, and Calinski-Harabasz scores"
+        "   - The elbow point in the inertia curve determines the optimal k"
+        "3. IMMEDIATELY call generate_cluster_profiles(csv_file=<original path>, cluster_labels=<labels from step 2>, preprocessed_data=<result from step 1>)"
+        "   - This generates descriptive profiles and statistics for each cluster"
+        "4. IMMEDIATELY call save_clustered_data(csv_file=<original path>, cluster_labels=<labels from step 2>)"
         "\n"
-        "After tool execution completes, provide a comprehensive summary:\n"
-        "- Optimal clusters found (by elbow method): <n_clusters from step 2>\n"
-        "- Silhouette score: <silhouette_score from step 2>\n"
-        "- Davies-Bouldin score: <davies_bouldin_score from step 2>\n"
-        "- Calinski-Harabasz score: <calinski_harabasz_score from step 2>\n"
-        "- Cluster sizes: <cluster_sizes from step 2>\n"
-        "- Selection method: <selection_method from optimization_scores>\n"
-        "- Saved to: <output_path from step 4>\n"
-        "\n"
-        "CLUSTER PROFILES:\n"
-        "For each cluster from step 3, include:\n"
-        "- The complete description from cluster_profiles\n"
-        "- Key feature statistics to help understand each segment\n"
-        "\n"
-        "FORBIDDEN: Generating Python code, explaining algorithms, describing methodology, writing 'I will', 'I would', or 'First, let me'.\n"
+        "After tool execution completes, provide a comprehensive summary:"
+        "- Optimal clusters found (by elbow method): <n_clusters from step 2>"
+        "- Silhouette score: <silhouette_score from step 2>"
+        "- Davies-Bouldin score: <davies_bouldin_score from step 2>"
+        "- Calinski-Harabasz score: <calinski_harabasz_score from step 2>"
+        "- Cluster sizes: <cluster_sizes from step 2>"
+        "- Selection method: <selection_method from optimization_scores>"
+        "- Saved to: <output_path from step 4>"
+        "CLUSTER PROFILES:"
+        "For each cluster from step 3, include:"
+        "- The complete description from cluster_profiles"
+        "- Key feature statistics to help understand each segment"
+        "FORBIDDEN: Generating Python code, explaining algorithms, describing methodology, writing 'I will', 'I would', or 'First, let me'."
         "REQUIRED: Execute tools immediately and report results."
     ),
     tools=[preprocess_csv_for_clustering, perform_cluster_analysis, generate_cluster_profiles, save_clustered_data],
@@ -75,7 +69,6 @@ streamlit_clustering_agent = Agent(
 
 logger.info("Initialized clustering agent with elbow-method tools")
 
-# Marketing strategy agent (unchanged)
 marketing_strategy_agent = Agent(
     model=Gemini(model="gemini-2.5-flash", retry_options=retry_config),
     name="marketing_strategy_agent",
@@ -154,7 +147,6 @@ def run_qna_hybrid(question: str, context: str = None) -> str:
     - Uses Gemini API directly (avoids event loop issues)
     - Maintains conversation history (like ADK sessions)
     - Uses agent instruction (from ADK agent definition)
-    - Structured to demonstrate agent concepts for capstone
 
     Args:
         question: The user's question
@@ -168,7 +160,6 @@ def run_qna_hybrid(question: str, context: str = None) -> str:
     logger.debug(f"Question length: {len(question)} chars, Context provided: {context is not None}")
 
     try:
-        # Get conversation history (simulates ADK session)
         conv_history = get_conversation_history()
 
         logger.debug(f"Context initialized: {conv_history['context_initialized']}")
@@ -203,7 +194,6 @@ def run_qna_hybrid(question: str, context: str = None) -> str:
         })
 
         # Make API call with full conversation history
-        # This is equivalent to what ADK's InMemoryRunner does
         logger.debug("Making API call to Gemini")
         response = client.models.generate_content(
             model='gemini-2.5-flash',
